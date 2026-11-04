@@ -1,0 +1,66 @@
+# Crashheal configuration — https://github.com/imanujagarwal/crashheal#configuration
+# ${VAR} and ${VAR:-default} are read from the environment (map secrets in .github/workflows/crashheal.yml).
+
+version: 1
+firebase:
+  projectId: feed-418c9
+
+# One entry per Firebase Android app. `variant` is what gets built to verify fixes: use a debuggable
+# variant of the same flavor that ships (e.g. prodDebug), so it installs without your release keystore.
+apps:
+  - firebaseAppId: "1:74309595644:android:520475bd53213160e0c279"
+    module: ":app"
+    variant: debug
+    applicationId: com.example.feed
+
+# How a crash's app version maps to the git tag it shipped from. Placeholders: {versionName}, {versionCode}.
+release:
+  tagPattern: v{versionName}
+  missingTag: use-base
+
+# `setup` runs in every checkout before Gradle, e.g. to write google-services.json from a secret:
+#   setup: echo "$GOOGLE_SERVICES_JSON" > app/google-services.json
+build:
+  gradleArgs:
+    - --no-daemon
+    - --stacktrace
+  env: {}
+
+# How to get into your app. setupFlows are Maestro flows run before every repro (login, skip onboarding).
+# env values go to Maestro only; the agent never sees them and writes ${TEST_PASSWORD}-style placeholders.
+#   env:
+#     TEST_USER: ${CRASHHEAL_TEST_USER}
+#     TEST_PASSWORD: ${CRASHHEAL_TEST_PASSWORD}
+reach:
+  setupFlows: []
+  env: {}
+
+# Which Crashlytics issues to work on. ignore matches the issue title / top frame, * is a wildcard.
+issues:
+  types:
+    - fatal
+    - anr
+    - nonfatal
+    - regression
+  minUsers: 1
+  ignore: []
+  maxRunsPerDay: 10
+agent:
+  type: claude-code
+  maxTurns: 120
+  timeoutMinutes: 45
+
+# emulator: boot an AVD on the CI runner, matching the API level most affected by the crash.
+# connected: use an already-attached adb device (self-hosted runner with real phones).
+device:
+  runner: emulator
+  apiLevel: auto
+  profile: pixel_6
+
+# Pull requests are always opened by crashheal, never by the agent. onUnverified: summary | issue
+pr:
+  draft: true
+  labels:
+    - crashheal
+  reviewers: []
+  onUnverified: summary
